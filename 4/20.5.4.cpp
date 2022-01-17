@@ -5,12 +5,14 @@
 #include <ctime>
 
 enum {
-  bknt_100 = 0,
+  bknt_min = 0,
+  bknt_100 = bknt_min,
   bknt_200,
   bknt_500,
   bknt_1000,
   bknt_2000,
   bknt_5000,
+  bknt_max = bknt_5000,
   bknt_types_count
 };
 
@@ -40,12 +42,52 @@ int main()
   else if (str_operation[0] == '-')
   {
     int amount = std::stoi(str_operation.substr(1));
-    if (0 != (amount % banknotes_value[0]))
+    if (0 != (amount % banknotes_value[bknt_min]))
     {
       std::cout << "Invalid amount" << std::endl;
       return -1;
     }
-
+    std::ifstream atm("..\\atm.bin", std::ios::binary);
+    if (!atm.is_open())
+    {
+      std::cout << "Can't open ..\\atm.bin" << std::endl;
+      return -1;
+    }
+    atm.read((char *)banknotes_count, sizeof(banknotes_count));
+    atm.close();
+    int remainder = amount;
+    int banknotes_for_issuance[bknt_types_count] = {0};
+    for (int banknote_type = bknt_max; banknote_type >= bknt_min; banknote_type--)
+    {
+      banknotes_for_issuance[banknote_type] = remainder / banknotes_value[banknote_type];
+      if (banknotes_for_issuance[banknote_type] > banknotes_count[banknote_type])
+        banknotes_for_issuance[banknote_type] = banknotes_count[banknote_type];
+      remainder -= banknotes_for_issuance[banknote_type] * banknotes_value[banknote_type];
+      if (0 == remainder)
+        break;
+    }
+    if (0 == remainder)
+    {
+      std::cout << "Issued: ";
+      for (int banknote_type = bknt_max; banknote_type >= bknt_min; banknote_type--)
+      {
+        banknotes_count[banknote_type] -= banknotes_for_issuance[banknote_type];
+        std::cout << banknotes_for_issuance[banknote_type] << " x " << banknotes_value[banknote_type] << "; ";
+      }
+      std::cout << std::endl;
+      std::ofstream atm("..\\atm.bin", std::ios::binary);
+      if (!atm.is_open())
+      {
+        std::cout << "Can't open ..\\atm.bin" << std::endl;
+        return -1;
+      }
+      atm.write((char *)banknotes_count, sizeof(banknotes_count));
+      atm.close();
+    }
+    else
+    {
+      std::cout << "Not enough cash in the ATM" << std::endl;
+    }
   }
   else
   {
